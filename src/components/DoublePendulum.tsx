@@ -60,6 +60,8 @@ export default function DoublePendulum() {
   const centerX = 400;
   const centerY = 100;
   const scale = 1;
+  // Use meters for physics, pixels for drawing. 1px = 1cm by default.
+  const metersPerPixel = 0.01;
   
   // Calculate pendulum positions
   const getPositions = useCallback((currentState: PendulumState) => {
@@ -79,57 +81,70 @@ export default function DoublePendulum() {
   const calculateEnergy = useCallback((currentState: PendulumState) => {
     const { angle1, angle2, velocity1, velocity2 } = currentState;
     const { length1, length2, mass1, mass2, gravity } = config;
-    
+
+    // Convert lengths to meters for physics
+    const L1 = length1 * metersPerPixel;
+    const L2 = length2 * metersPerPixel;
+
     // Kinetic energy
-    const ke1 = 0.5 * mass1 * Math.pow(length1 * velocity1, 2);
-    const ke2 = 0.5 * mass2 * (
-      Math.pow(length1 * velocity1, 2) + 
-      Math.pow(length2 * velocity2, 2) + 
-      2 * length1 * length2 * velocity1 * velocity2 * Math.cos(angle1 - angle2)
-    );
-    
-    // Potential energy (taking center as reference)
-    const pe1 = -mass1 * gravity * length1 * Math.cos(angle1);
-    const pe2 = -mass2 * gravity * (length1 * Math.cos(angle1) + length2 * Math.cos(angle2));
-    
+    const ke1 = 0.5 * mass1 * Math.pow(L1 * velocity1, 2);
+    const ke2 =
+      0.5 *
+      mass2 *
+      (Math.pow(L1 * velocity1, 2) +
+        Math.pow(L2 * velocity2, 2) +
+        2 * L1 * L2 * velocity1 * velocity2 * Math.cos(angle1 - angle2));
+
+    // Potential energy (taking pivot as reference)
+    const pe1 = -mass1 * gravity * L1 * Math.cos(angle1);
+    const pe2 = -mass2 * gravity * (L1 * Math.cos(angle1) + L2 * Math.cos(angle2));
+
     return ke1 + ke2 + pe1 + pe2;
-  }, [config]);
+  }, [config, metersPerPixel]);
   
-  // Lagrangian mechanics equations of motion
+  // Lagrangian mechanics equations of motion (standard form with meter conversion)
   const updateState = useCallback((currentState: PendulumState, dt: number) => {
     const { angle1, angle2, velocity1, velocity2 } = currentState;
     const { length1, length2, mass1, mass2, gravity } = config;
-    
-    const deltaAngle = angle1 - angle2;
-    const den1 = (mass1 + mass2) * length1 - mass2 * length1 * Math.cos(deltaAngle) * Math.cos(deltaAngle);
-    const den2 = (length2 / length1) * den1;
-    
-    // First pendulum acceleration
-    const num1 = (
-      -mass2 * length1 * velocity1 * velocity1 * Math.sin(deltaAngle) * Math.cos(deltaAngle) +
-      mass2 * gravity * Math.sin(angle2) * Math.cos(deltaAngle) +
-      mass2 * length2 * velocity2 * velocity2 * Math.sin(deltaAngle) -
-      (mass1 + mass2) * gravity * Math.sin(angle1)
-    );
-    
-    // Second pendulum acceleration
-    const num2 = (
-      -mass2 * length2 * velocity2 * velocity2 * Math.sin(deltaAngle) * Math.cos(deltaAngle) +
-      (mass1 + mass2) * gravity * Math.sin(angle1) * Math.cos(deltaAngle) -
-      (mass1 + mass2) * length1 * velocity1 * velocity1 * Math.sin(deltaAngle) -
-      (mass1 + mass2) * gravity * Math.sin(angle2)
-    );
-    
-    const acceleration1 = num1 / den1;
-    const acceleration2 = num2 / den2;
-    
+
+    // Convert lengths to meters for physics
+    const L1 = length1 * metersPerPixel;
+    const L2 = length2 * metersPerPixel;
+
+    const m1 = mass1;
+    const m2 = mass2;
+    const a1 = angle1;
+    const a2 = angle2;
+    const w1 = velocity1;
+    const w2 = velocity2;
+
+    const delta = a1 - a2;
+    const den = 2 * m1 + m2 - m2 * Math.cos(2 * a1 - 2 * a2);
+
+    // Angular accelerations (rad/s^2), standard double pendulum equations
+    const a1acc =
+      (-gravity * (2 * m1 + m2) * Math.sin(a1) -
+        m2 * gravity * Math.sin(a1 - 2 * a2) -
+        2 * Math.sin(delta) *
+          m2 *
+          (w2 * w2 * L2 + w1 * w1 * L1 * Math.cos(delta))) /
+      (L1 * den);
+
+    const a2acc =
+      (2 *
+        Math.sin(delta) *
+        (w1 * w1 * L1 * (m1 + m2) +
+          gravity * (m1 + m2) * Math.cos(a1) +
+          w2 * w2 * L2 * m2 * Math.cos(delta))) /
+      (L2 * den);
+
     return {
-      angle1: angle1 + velocity1 * dt,
-      angle2: angle2 + velocity2 * dt,
-      velocity1: velocity1 + acceleration1 * dt,
-      velocity2: velocity2 + acceleration2 * dt,
+      angle1: a1 + w1 * dt,
+      angle2: a2 + w2 * dt,
+      velocity1: w1 + a1acc * dt,
+      velocity2: w2 + a2acc * dt,
     };
-  }, [config]);
+  }, [config, metersPerPixel]);
   
   // Animation loop
   const animate = useCallback((currentTime: number) => {
