@@ -601,7 +601,73 @@ export default function DoublePendulum() {
                 )}
               </CardContent>
             </Card>
-            
+
+            {/* Energy Graph moved above Visualization */}
+            {showEnergy && energyHistory.length > 10 && (
+              <Card className="bg-[#111111] border-gray-800">
+                <CardHeader>
+                  <CardTitle className="text-[#ff0080]">Energy Conservation</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-32 relative">
+                    <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                      {/* Grid lines */}
+                      <g opacity="0.15" stroke="#ffffff">
+                        {[0, 25, 50, 75, 100].map((v) => (
+                          <line key={`h-${v}`} x1="0" y1={v} x2="100" y2={v} strokeWidth="0.5" />
+                        ))}
+                        {[0, 25, 50, 75, 100].map((v) => (
+                          <line key={`v-${v}`} x1={v} y1="0" x2={v} y2="100" strokeWidth="0.5" />
+                        ))}
+                      </g>
+
+                      {/* Axes */}
+                      <g stroke="#9ca3af">
+                        <line x1="0" y1="100" x2="100" y2="100" strokeWidth="0.75" />
+                        <line x1="0" y1="0" x2="0" y2="100" strokeWidth="0.75" />
+                      </g>
+
+                      {/* Ticks */}
+                      <g stroke="#9ca3af">
+                        {[0, 25, 50, 75, 100].map((v) => (
+                          <line key={`xt-${v}`} x1={v} y1="100" x2={v} y2="98" strokeWidth="0.75" />
+                        ))}
+                        {[0, 25, 50, 75, 100].map((v) => (
+                          <line key={`yt-${v}`} x1="0" y1={v} x2="2" y2={v} strokeWidth="0.75" />
+                        ))}
+                      </g>
+
+                      {/* Labels */}
+                      <g fill="#9ca3af" fontSize="4" fontFamily="ui-sans-serif, system-ui">
+                        <text x="50" y="98" textAnchor="middle">time</text>
+                        <text x="2" y="6" textAnchor="start">energy</text>
+                        <text x="0" y="104" textAnchor="start">0</text>
+                        <text x="25" y="104" textAnchor="middle">25%</text>
+                        <text x="50" y="104" textAnchor="middle">50%</text>
+                        <text x="75" y="104" textAnchor="middle">75%</text>
+                        <text x="100" y="104" textAnchor="end">100%</text>
+                      </g>
+
+                      {/* Energy polyline */}
+                      <polyline
+                        fill="none"
+                        stroke="#00ff88"
+                        strokeWidth="2"
+                        points={energyHistory.map((energy, i) => {
+                          const x = (i / (energyHistory.length - 1)) * 100;
+                          const minE = Math.min(...energyHistory);
+                          const maxE = Math.max(...energyHistory);
+                          const y = 100 - ((energy - minE) / (maxE - minE || 1)) * 100;
+                          return `${x},${y}`;
+                        }).join(' ')}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    </svg>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="bg-[#111111] border-gray-800">
               <CardHeader>
                 <CardTitle className="text-[#0088ff]">Visualization</CardTitle>
@@ -641,75 +707,6 @@ export default function DoublePendulum() {
                 </div>
               </CardContent>
             </Card>
-            
-            {/* Energy Graph */}
-            {showEnergy && energyHistory.length > 10 && (
-              <Card className="bg-[#111111] border-gray-800">
-                <CardHeader>
-                  <CardTitle className="text-[#ff0080]">Energy Conservation</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-32 relative">
-                    <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      {/* Grid lines */}
-                      <g opacity="0.15" stroke="#ffffff">
-                        {[0, 25, 50, 75, 100].map((v) => (
-                          <line key={`h-${v}`} x1="0" y1={v} x2="100" y2={v} strokeWidth="0.5" />
-                        ))}
-                        {[0, 25, 50, 75, 100].map((v) => (
-                          <line key={`v-${v}`} x1={v} y1="0" x2={v} y2="100" strokeWidth="0.5" />
-                        ))}
-                      </g>
-
-                      {/* Axes */}
-                      <g stroke="#9ca3af">
-                        {/* X-axis */}
-                        <line x1="0" y1="100" x2="100" y2="100" strokeWidth="0.75" />
-                        {/* Y-axis */}
-                        <line x1="0" y1="0" x2="0" y2="100" strokeWidth="0.75" />
-                      </g>
-
-                      {/* Ticks */}
-                      <g stroke="#9ca3af">
-                        {[0, 25, 50, 75, 100].map((v) => (
-                          <line key={`xt-${v}`} x1={v} y1="100" x2={v} y2="98" strokeWidth="0.75" />
-                        ))}
-                        {[0, 25, 50, 75, 100].map((v) => (
-                          <line key={`yt-${v}`} x1="0" y1={v} x2="2" y2={v} strokeWidth="0.75" />
-                        ))}
-                      </g>
-
-                      {/* Labels */}
-                      <g fill="#9ca3af" fontSize="4" fontFamily="ui-sans-serif, system-ui">
-                        <text x="50" y="98" textAnchor="middle">time</text>
-                        <text x="2" y="6" textAnchor="start">energy</text>
-                        {/* Optional numeric labels */}
-                        <text x="0" y="104" textAnchor="start">0</text>
-                        <text x="25" y="104" textAnchor="middle">25%</text>
-                        <text x="50" y="104" textAnchor="middle">50%</text>
-                        <text x="75" y="104" textAnchor="middle">75%</text>
-                        <text x="100" y="104" textAnchor="end">100%</text>
-                      </g>
-
-                      {/* Energy polyline */}
-                      <polyline
-                        fill="none"
-                        stroke="#00ff88"
-                        strokeWidth="2"
-                        points={energyHistory.map((energy, i) => {
-                          const x = (i / (energyHistory.length - 1)) * 100;
-                          const minE = Math.min(...energyHistory);
-                          const maxE = Math.max(...energyHistory);
-                          const y = 100 - ((energy - minE) / (maxE - minE || 1)) * 100;
-                          return `${x},${y}`;
-                        }).join(' ')}
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    </svg>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
       </div>
