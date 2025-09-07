@@ -210,12 +210,15 @@ export default function DoublePendulum() {
     
     // Draw trails
     if (showTrails && trails.length > 1) {
+      // Use performance.now() to match RAF timestamps
+      const now = performance.now();
       ctx.strokeStyle = '#00ff88';
       ctx.lineWidth = 2;
       ctx.beginPath();
       
       for (let i = 1; i < trails.length; i++) {
-        const alpha = Math.max(0, (trails[i].timestamp - (Date.now() - 3000)) / 3000);
+        const age = now - trails[i].timestamp;
+        const alpha = Math.max(0, 1 - age / 3000); // fade out over 3s
         ctx.globalAlpha = alpha * 0.8;
         
         if (i === 1) {
@@ -530,7 +533,48 @@ export default function DoublePendulum() {
                 </CardHeader>
                 <CardContent>
                   <div className="h-32 relative">
-                    <svg className="w-full h-full">
+                    <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                      {/* Grid lines */}
+                      <g opacity="0.15" stroke="#ffffff">
+                        {[0, 25, 50, 75, 100].map((v) => (
+                          <line key={`h-${v}`} x1="0" y1={v} x2="100" y2={v} strokeWidth="0.5" />
+                        ))}
+                        {[0, 25, 50, 75, 100].map((v) => (
+                          <line key={`v-${v}`} x1={v} y1="0" x2={v} y2="100" strokeWidth="0.5" />
+                        ))}
+                      </g>
+
+                      {/* Axes */}
+                      <g stroke="#9ca3af">
+                        {/* X-axis */}
+                        <line x1="0" y1="100" x2="100" y2="100" strokeWidth="0.75" />
+                        {/* Y-axis */}
+                        <line x1="0" y1="0" x2="0" y2="100" strokeWidth="0.75" />
+                      </g>
+
+                      {/* Ticks */}
+                      <g stroke="#9ca3af">
+                        {[0, 25, 50, 75, 100].map((v) => (
+                          <line key={`xt-${v}`} x1={v} y1="100" x2={v} y2="98" strokeWidth="0.75" />
+                        ))}
+                        {[0, 25, 50, 75, 100].map((v) => (
+                          <line key={`yt-${v}`} x1="0" y1={v} x2="2" y2={v} strokeWidth="0.75" />
+                        ))}
+                      </g>
+
+                      {/* Labels */}
+                      <g fill="#9ca3af" fontSize="4" fontFamily="ui-sans-serif, system-ui">
+                        <text x="50" y="98" textAnchor="middle">time</text>
+                        <text x="2" y="6" textAnchor="start">energy</text>
+                        {/* Optional numeric labels */}
+                        <text x="0" y="104" textAnchor="start">0</text>
+                        <text x="25" y="104" textAnchor="middle">25%</text>
+                        <text x="50" y="104" textAnchor="middle">50%</text>
+                        <text x="75" y="104" textAnchor="middle">75%</text>
+                        <text x="100" y="104" textAnchor="end">100%</text>
+                      </g>
+
+                      {/* Energy polyline */}
                       <polyline
                         fill="none"
                         stroke="#00ff88"
@@ -543,8 +587,6 @@ export default function DoublePendulum() {
                           return `${x},${y}`;
                         }).join(' ')}
                         vectorEffect="non-scaling-stroke"
-                        preserveAspectRatio="none"
-                        viewBox="0 0 100 100"
                       />
                     </svg>
                   </div>
