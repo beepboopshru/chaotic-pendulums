@@ -603,7 +603,7 @@ export default function DoublePendulum() {
             </Card>
 
             {/* Energy Graph moved above Visualization */}
-            {showEnergy && energyHistory.length > 10 && (
+            {showEnergy && (
               <Card className="bg-[#111111] border-gray-800">
                 <CardHeader>
                   <CardTitle className="text-[#ff0080]">Energy Conservation</CardTitle>
@@ -653,13 +653,17 @@ export default function DoublePendulum() {
                         fill="none"
                         stroke="#00ff88"
                         strokeWidth="2"
-                        points={energyHistory.map((energy, i) => {
-                          const x = (i / (energyHistory.length - 1)) * 100;
-                          const minE = Math.min(...energyHistory);
-                          const maxE = Math.max(...energyHistory);
-                          const y = 100 - ((energy - minE) / (maxE - minE || 1)) * 100;
-                          return `${x},${y}`;
-                        }).join(' ')}
+                        points={
+                          energyHistory.length >= 2
+                            ? energyHistory.map((energy, i) => {
+                                const x = (i / (energyHistory.length - 1)) * 100;
+                                const minE = Math.min(...energyHistory);
+                                const maxE = Math.max(...energyHistory);
+                                const y = 100 - ((energy - minE) / (maxE - minE || 1)) * 100;
+                                return `${x},${y}`;
+                              }).join(' ')
+                            : ""
+                        }
                         vectorEffect="non-scaling-stroke"
                       />
                     </svg>
