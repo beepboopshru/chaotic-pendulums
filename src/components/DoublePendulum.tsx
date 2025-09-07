@@ -33,7 +33,13 @@ export default function DoublePendulum() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
   const lastTimeRef = useRef<number>(0);
-  
+
+  // Add: coordinate system and physics unit conversion constants
+  const centerX = 400; // pivot X (canvas width is 800)
+  const centerY = 120; // pivot Y (near top for visibility)
+  const scale = 1; // pixel scaling for drawing
+  const metersPerPixel = 0.01; // 1 px = 0.01 m for physics calculations
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [showTrails, setShowTrails] = useState(true);
   const [showEnergy, setShowEnergy] = useState(true);
@@ -60,13 +66,8 @@ export default function DoublePendulum() {
   
   const [trails, setTrails] = useState<Trail[]>([]);
   const [energyHistory, setEnergyHistory] = useState<number[]>([]);
-  
-  const centerX = 400;
-  const centerY = 100;
-  const scale = 1;
-  // Use meters for physics, pixels for drawing. 1px = 1cm by default.
-  const metersPerPixel = 0.01;
-  
+  const [trails1, setTrails1] = useState<Trail[]>([]);
+
   // Add: drag state and play state memory
   const [dragging, setDragging] = useState<null | "mass1" | "mass2">(null);
   const wasPlayingRef = useRef(false);
@@ -177,7 +178,12 @@ export default function DoublePendulum() {
         const newState = updateState(prevState, dt);
         
         // Add trail point
-        const { x2, y2 } = getPositions(newState);
+        const { x1, y1, x2, y2 } = getPositions(newState);
+        setTrails1(prevTrails => {
+          const newTrails = [...prevTrails, { x: x1, y: y1, timestamp: currentTime }];
+          // Keep only recent trails (last 3 seconds)
+          return newTrails.filter(trail => currentTime - trail.timestamp < 3000);
+        });
         setTrails(prevTrails => {
           const newTrails = [...prevTrails, { x: x2, y: y2, timestamp: currentTime }];
           // Keep only recent trails (last 3 seconds)
@@ -233,6 +239,26 @@ export default function DoublePendulum() {
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
+
+    if (showTrails && trails1.length > 1) {
+      const now = performance.now();
+      ctx.strokeStyle = '#0088ff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      
+      for (let i = 1; i < trails1.length; i++) {
+        const age = now - trails1[i].timestamp;
+        const alpha = Math.max(0, 1 - age / 3000); // fade out over 3s
+        ctx.globalAlpha = alpha * 0.8;
+        
+        if (i === 1) {
+          ctx.moveTo(trails1[i-1].x, trails1[i-1].y);
+        }
+        ctx.lineTo(trails1[i].x, trails1[i].y);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
     
     // Draw pendulum rods
     ctx.strokeStyle = '#ffffff';
@@ -271,7 +297,7 @@ export default function DoublePendulum() {
     ctx.lineWidth = 2;
     ctx.stroke();
     
-  }, [state, config, trails, showTrails, getPositions]);
+  }, [state, config, trails, trails1, showTrails, getPositions]);
   
   // Add: helper to get canvas-relative coordinates accounting for CSS scaling
   const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -303,6 +329,7 @@ export default function DoublePendulum() {
       wasPlayingRef.current = isPlaying;
       setIsPlaying(false);
       setTrails([]); // clear trails to avoid artifacts while dragging
+      setTrails1([]);
       if (d2 <= d1 && d2 <= threshold2) {
         setDragging("mass2");
       } else if (d1 <= threshold1) {
@@ -384,6 +411,7 @@ export default function DoublePendulum() {
     });
     setTrails([]);
     setEnergyHistory([]);
+    setTrails1([]);
   };
   
   const handleRandomize = () => {
@@ -600,7 +628,7 @@ export default function DoublePendulum() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-[#0088ff]"></div>
-                    <span className="text-xs text-gray-400">Mass 1</span>
+                    <span className="text-xs text-gray-400">Mass 1 & Trail</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-[#00ff88]"></div>
