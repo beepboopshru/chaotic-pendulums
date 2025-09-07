@@ -67,6 +67,10 @@ export default function DoublePendulum() {
   // Use meters for physics, pixels for drawing. 1px = 1cm by default.
   const metersPerPixel = 0.01;
   
+  // Add: drag state and play state memory
+  const [dragging, setDragging] = useState<null | "mass1" | "mass2">(null);
+  const wasPlayingRef = useRef(false);
+
   // Calculate pendulum positions
   const getPositions = useCallback((currentState: PendulumState) => {
     const { angle1, angle2 } = currentState;
@@ -269,6 +273,87 @@ export default function DoublePendulum() {
     
   }, [state, config, trails, showTrails, getPositions]);
   
+  // Add: helper to get canvas-relative coordinates accounting for CSS scaling
+  const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) * canvas.width) / rect.width;
+    const y = ((e.clientY - rect.top) * canvas.height) / rect.height;
+    return { x, y };
+  };
+
+  // Add: pointer handlers for drag & release
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const { x, y } = getCanvasCoords(e);
+    const { x1, y1, x2, y2 } = getPositions(state);
+
+    const radius1 = Math.max(8, config.mass1);
+    const radius2 = Math.max(8, config.mass2);
+    const threshold1 = radius1 + 8;
+    const threshold2 = radius2 + 8;
+
+    const d1 = Math.hypot(x - x1, y - y1);
+    const d2 = Math.hypot(x - x2, y - y2);
+
+    if (d1 <= threshold1 || d2 <= threshold2) {
+      wasPlayingRef.current = isPlaying;
+      setIsPlaying(false);
+      setTrails([]); // clear trails to avoid artifacts while dragging
+      if (d2 <= d1 && d2 <= threshold2) {
+        setDragging("mass2");
+      } else if (d1 <= threshold1) {
+        setDragging("mass1");
+      }
+      canvas.setPointerCapture?.(e.pointerId);
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!dragging) return;
+    const { x, y } = getCanvasCoords(e);
+
+    if (dragging === "mass1") {
+      // Set angle1 from pivot (centerX, centerY) towards mouse
+      const newAngle1 = Math.atan2(x - centerX, y - centerY);
+      setState(prev => ({
+        ...prev,
+        angle1: newAngle1,
+        velocity1: 0,
+        velocity2: 0,
+      }));
+      setTrails([]);
+      return;
+    }
+
+    if (dragging === "mass2") {
+      // Set angle2 from mass1 position towards mouse
+      const { x1, y1 } = getPositions(state);
+      const newAngle2 = Math.atan2(x - x1, y - y1);
+      setState(prev => ({
+        ...prev,
+        angle2: newAngle2,
+        velocity1: 0,
+        velocity2: 0,
+      }));
+      setTrails([]);
+      return;
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!dragging) return;
+    setDragging(null);
+    const canvas = canvasRef.current;
+    canvas?.releasePointerCapture?.(e.pointerId);
+    if (wasPlayingRef.current) {
+      setIsPlaying(true);
+    }
+  };
+
   // Start/stop animation
   useEffect(() => {
     if (isPlaying) {
@@ -339,6 +424,10 @@ export default function DoublePendulum() {
                     width={800}
                     height={600}
                     className="w-full h-auto border border-gray-700 rounded-lg bg-[#0a0a0a]"
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp}
                   />
                   
                   {/* Control Overlay */}
