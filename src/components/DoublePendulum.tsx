@@ -53,6 +53,10 @@ export default function DoublePendulum() {
     mass2: 10,
     gravity: 9.81,
   });
+
+  // Add: energy loss (damping) controls
+  const [enableDamping, setEnableDamping] = useState(false);
+  const [damping, setDamping] = useState(0.05); // per-second damping factor
   
   const [trails, setTrails] = useState<Trail[]>([]);
   const [energyHistory, setEnergyHistory] = useState<number[]>([]);
@@ -138,13 +142,24 @@ export default function DoublePendulum() {
           w2 * w2 * L2 * m2 * Math.cos(delta))) /
       (L2 * den);
 
+    // Integrate angles and velocities
+    let newV1 = w1 + a1acc * dt;
+    let newV2 = w2 + a2acc * dt;
+
+    // Apply exponential damping to model energy loss (e.g., air resistance)
+    if (enableDamping && damping > 0) {
+      const decay = Math.exp(-damping * dt);
+      newV1 *= decay;
+      newV2 *= decay;
+    }
+
     return {
-      angle1: a1 + w1 * dt,
-      angle2: a2 + w2 * dt,
-      velocity1: w1 + a1acc * dt,
-      velocity2: w2 + a2acc * dt,
+      angle1: a1 + newV1 * dt,
+      angle2: a2 + newV2 * dt,
+      velocity1: newV1,
+      velocity2: newV2,
     };
-  }, [config, metersPerPixel]);
+  }, [config, metersPerPixel, enableDamping, damping]);
   
   // Animation loop
   const animate = useCallback((currentTime: number) => {
@@ -293,7 +308,7 @@ export default function DoublePendulum() {
   };
   
   const currentEnergy = calculateEnergy(state);
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] to-[#111111] text-white p-4">
       <div className="max-w-7xl mx-auto">
@@ -356,10 +371,11 @@ export default function DoublePendulum() {
                       <div className="text-sm">
                         <div className="text-[#00ff88]">Energy: {currentEnergy.toFixed(2)} J</div>
                         <div className="text-gray-400 text-xs mt-1">
-                          Conservation: {energyHistory.length > 10 ? 
-                            ((1 - Math.abs(currentEnergy - energyHistory[0]) / Math.abs(energyHistory[0])) * 100).toFixed(1) + '%' : 
-                            'N/A'
-                          }
+                          {enableDamping
+                            ? "Dissipative (energy loss enabled)"
+                            : energyHistory.length > 10
+                              ? ((1 - Math.abs(currentEnergy - energyHistory[0]) / Math.abs(energyHistory[0])) * 100).toFixed(1) + "%"
+                              : "N/A"}
                         </div>
                       </div>
                     </div>
@@ -438,6 +454,31 @@ export default function DoublePendulum() {
                     className="mt-2"
                   />
                 </div>
+
+                {/* Add: Energy Loss (Damping) */}
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm text-gray-300">Energy Loss (Damping)</Label>
+                  <Switch
+                    checked={enableDamping}
+                    onCheckedChange={setEnableDamping}
+                  />
+                </div>
+
+                {enableDamping && (
+                  <div>
+                    <Label className="text-sm text-gray-300">
+                      Damping: {damping.toFixed(2)} s⁻¹
+                    </Label>
+                    <Slider
+                      value={[damping]}
+                      onValueChange={([value]) => setDamping(value)}
+                      min={0.01}
+                      max={1}
+                      step={0.01}
+                      className="mt-2"
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
             
